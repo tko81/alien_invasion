@@ -1,0 +1,31 @@
+name: pr-notify.yml
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check and notify
+        run: |
+          # 检查审查者
+          REVIEWERS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" | \
+            jq '(.requested_reviewers | length) + (.requested_teams | length)')
+          
+          if [ "$REVIEWERS" -eq 0 ]; then
+            echo "无审查者，跳过通知"
+            exit 0
+          fi
+          
+          # 发送通知
+          curl -X POST "${{ secrets.FEISHU_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"PR ${{ github.event.action }} - 需要审查\\n\\n标题: ${{ github.event.pull_request.title }}\\n作者: ${{ github.event.pull_request.user.login }}\\n仓库: ${{ github.repository }}\\n链接: ${{ github.event.pull_request.html_url }}\"
+              }
+            }"
