@@ -20,12 +20,26 @@ jobs:
             exit 0
           fi
           
+          # 获取评审人列表
+          REVIEWER_NAMES=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" | \
+            jq -r '.requested_reviewers[].login' | tr '\n' ',' | sed 's/,$//')
+          
+          
+          # 构建消息内容
+          MESSAGE="PR ${{ github.event.action }} - 需要审查\\n"
+          MESSAGE+="标题: ${{ github.event.pull_request.title }}\\n"
+          MESSAGE+="作者: ${{ github.event.pull_request.user.login }}\\n"
+          MESSAGE+="仓库: ${{ github.repository }}\\n"
+          MESSAGE+="链接: ${{ github.event.pull_request.html_url }}\\n"
+          MESSAGE+="评审人: ${REVIEWER_NAMES}"
+          
           # 发送通知
           curl -X POST "${{ secrets.FEISHU_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "{
               \"msg_type\": \"text\",
               \"content\": {
-                \"text\": \"PR ${{ github.event.action }} - 需要审查\\n\\n标题: ${{ github.event.pull_request.title }}\\n作者: ${{ github.event.pull_request.user.login }}\\n仓库: ${{ github.repository }}\\n链接: ${{ github.event.pull_request.html_url }}\"
+                \"text\": \"${MESSAGE}\"
               }
             }"
