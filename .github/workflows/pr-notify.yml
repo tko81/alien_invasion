@@ -18,15 +18,20 @@ jobs:
             echo "无审查者，跳过通知"
             exit 0
           fi
-          
-          
-        
           # 获取评审人列表
           REVIEWER_NAMES=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" | \
             jq -r '.requested_reviewers[].login' | tr '\n' ',' | sed 's/,$//')
           # 构建消息内容
-          MESSAGE="⚡ PR ${{ github.event.action }} - 需要审查\\n"
+          if [ "${{ github.event.action }}" = "opened" ]; then
+            ACTION_TEXT="⚡ PR 已创建 - 需要审查"
+          elif [ "${{ github.event.action }}" = "synchronize" ]; then
+            ACTION_TEXT="🔄 PR 已更新 - 需要重新审查"
+          else
+            ACTION_TEXT="⚡ PR ${{ github.event.action }} - 需要审查"
+          fi
+          
+          MESSAGE="${ACTION_TEXT}\\n"
           MESSAGE+="🎯 标题: ${{ github.event.pull_request.title }}\\n"
           MESSAGE+="✍️ 作者: ${{ github.event.pull_request.user.login }}\\n"
           MESSAGE+="🏠 仓库: ${{ github.repository }}\\n"
